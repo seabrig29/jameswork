@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full Body Workout Tracker</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f7fafc;
+      margin: 0;
+      padding: 20px;
+      color: #2d3748;
+    }
+    .container { max-width: 850px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .title { font-size: 24px; margin: 0; font-weight: 700; }
+    .toggle-group { display: flex; gap: 8px; }
+    .btn-hard { padding: 10px 16px; background-color: #e53e3e; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .btn-high { padding: 10px 16px; background-color: #319795; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .btn-inactive { padding: 10px 16px; background-color: #edf2f7; color: #4a5568; border: none; border-radius: 6px; cursor: pointer; }
+    
+    /* Photo Classifier Box */
+    .classifier-card { border: 2px dashed #cbd5e0; border-radius: 8px; padding: 16px; background-color: #fff; margin-bottom: 24px; }
+    .classifier-title { font-size: 16px; font-weight: 700; margin-top: 0; margin-bottom: 12px; color: #2b6cb0; }
+    .classifier-grid { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    .photo-upload-zone { width: 110px; height: 110px; border: 1px solid #cbd5e0; border-radius: 6px; background: #f7fafc; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; flex-shrink: 0; }
+    .photo-preview { width: 100%; height: 100%; object-fit: cover; }
+    .upload-label { text-align: center; font-size: 12px; color: #718096; padding: 8px; }
+    .form-inputs { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
+    .form-row { display: flex; gap: 8px; }
+    .form-row select, .form-row input { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #cbd5e0; font-size: 13px; }
+    .add-btn { padding: 10px; background-color: #2b6cb0; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+    /* Exercise Card */
+    .main { display: flex; flex-direction: column; gap: 20px; }
+    .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-top { display: flex; gap: 16px; margin-bottom: 12px; align-items: flex-start; }
+    .img-display { width: 72px; height: 72px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e0; flex-shrink: 0; }
+    .card-header { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .exercise-title-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .exercise-name { font-size: 18px; font-weight: 700; margin: 0; }
+    .rotate-btn { background: #edf2f7; border: 1px solid #cbd5e0; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; color: #2d3748; font-weight: 700; transition: background 0.2s; }
+    .rotate-btn:hover { background: #e2e8f0; }
+    .subtext-group { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .category-tag { background-color: #ebf8ff; color: #2b6cb0; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .target-tag { background-color: #f0fff4; color: #276749; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-group { display: flex; gap: 8px; margin-top: 8px; }
+    .badge { background-color: #f7fafc; padding: 4px 8px; border-radius: 4px; font-size: 12px; border: 1px solid #cbd5e0; }
+    .table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .table th, .table td { padding: 8px; text-align: left; }
+    .td-center { text-align: center; }
+    .history-text { font-size: 13px; color: #718096; text-align: center; }
+    .input { width: 90%; padding: 6px; border-radius: 4px; border: 1px solid #cbd5e0; box-sizing: border-box; }
+    .select { width: 95%; padding: 6px; border-radius: 4px; border: 1px solid #cbd5e0; box-sizing: border-box; }
+    .save-hard-btn { width: 100%; padding: 10px; background-color: #e53e3e; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    .save-high-btn { width: 100%; padding: 10px; background-color: #319795; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const SUB_REGIONS = {
+      Chest: ["Upper Chest", "Lower Chest"],
+      Back: ["Upper Back", "Lower Back", "Shoulders"],
+      Arms: ["Bicep", "Forearm"],
+      Core: ["Front Core", "Side Core"],
+      Legs: ["Quads / Thighs", "Calves", "Glutes"]
+    };
+
+    const INITIAL_DATABASE = {
+      Chest: {
+        "Upper Chest": [
+          { name: "Incline Barbell Bench Press", hard: { target: "3–6", weight: 185, reps: 5 }, high: { target: "15–25", weight: 115, reps: 20 }, image: null },
+          { name: "Incline Dumbbell Press", hard: { target: "3–6", weight: 75, reps: 6 }, high: { target: "15–25", weight: 45, reps: 22 }, image: null }
+        ],
+        "Lower Chest": [
+          { name: "Flat Barbell Bench Press", hard: { target: "3–6", weight: 225, reps: 5 }, high: { target: "15–25", weight: 135, reps: 20 }, image: null },
+          { name: "Weighted Chest Dips", hard: { target: "3–6", weight: 45, reps: 4 }, high: { target: "15–25", weight: 0, reps: 25 }, image: null }
+        ]
+      },
+      Back: {
+        "Upper Back": [
+          { name: "Barbell Bent-Over Row", hard: { target: "3–6", weight: 185, reps: 6 }, high: { target: "15–25", weight: 115, reps: 22 }, image: null },
+          { name: "Wide-Grip Lat Pulldown", hard: { target: "3–6", weight: 160, reps: 6 }, high: { target: "15–25", weight: 100, reps: 20 }, image: null }
+        ],
+        "Lower Back": [
+          { name: "Barbell Deadlift", hard: { target: "3–6", weight: 335, reps: 3 }, high: { target: "15–25", weight: 185, reps: 15 }, image: null }
+        ],
+        "Shoulders": [
+          { name: "Overhead Barbell Press", hard: { target: "3–6", weight: 135, reps: 5 }, high: { target: "15–25", weight: 85, reps: 20 }, image: null },
+          { name: "Cable Lateral Raises", hard: { target: "3–6", weight: 35, reps: 6 }, high: { target: "15–25", weight: 20, reps: 25 }, image: null }
+        ]
+      },
+      Arms: {
+        "Bicep": [
+          { name: "Barbell Bicep Curl", hard: { target: "3–6", weight: 95, reps: 6 }, high: { target: "15–25", weight: 55, reps: 20 }, image: null },
+          { name: "Incline Dumbbell Curls", hard: { target: "3–6", weight: 40, reps: 5 }, high: { target: "15–25", weight: 25, reps: 18 }, image: null }
+        ],
+        "Forearm": [
+          { name: "Barbell Wrist Curls", hard: { target: "3–6", weight: 65, reps: 6 }, high: { target: "15–25", weight: 35, reps: 25 }, image: null }
+        ]
+      },
+      Core: {
+        "Front Core": [
+          { name: "Hanging Leg Raises", hard: { target: "3–6", weight: 20, reps: 6 }, high: { target: "15–25", weight: 0, reps: 25 }, image: null }
+        ],
+        "Side Core": [
+          { name: "Woodchoppers (Cable)", hard: { target: "3–6", weight: 60, reps: 6 }, high: { target: "15–25", weight: 35, reps: 20 }, image: null }
+        ]
+      },
+      Legs: {
+        "Quads / Thighs": [
+          { name: "Barbell Back Squat", hard: { target: "3–6", weight: 315, reps: 4 }, high: { target: "15–25", weight: 185, reps: 18 }, image: null },
+          { name: "Leg Press", hard: { target: "3–6", weight: 450, reps: 6 }, high: { target: "15–25", weight: 270, reps: 22 }, image: null }
+        ],
+        "Calves": [
+          { name: "Standing Calf Raises", hard: { target: "3–6", weight: 225, reps: 6 }, high: { target: "15–25", weight: 135, reps: 25 }, image: null }
+        ],
+        "Glutes": [
+          { name: "Barbell Hip Thrusts", hard: { target: "3–6", weight: 315, reps: 5 }, high: { target: "15–25", weight: 185, reps: 20 }, image: null }
+        ]
+      }
+    };
+
+    function WorkoutApp() {
+      const [sessionMode, setSessionMode] = React.useState('HARD');
+      const [exerciseDb, setExerciseDb] = React.useState(INITIAL_DATABASE);
+      
+      // Classifier State
+      const [newPhoto, setNewPhoto] = React.useState(null);
+      const [newName, setNewName] = React.useState('');
+      const [newCategory, setNewCategory] = React.useState('Chest');
+      const [newSubRegion, setNewSubRegion] = React.value = React.useState('Upper Chest');
+
+      // Active workout slots mapping to muscle regions
+      const [activeSlots, setActiveSlots] = React.useState([
+        { id: "slot_1", category: "Chest", subRegion: "Upper Chest", exerciseIndex: 0 },
+        { id: "slot_2", category: "Chest", subRegion: "Lower Chest", exerciseIndex: 0 },
+        { id: "slot_3", category: "Back", subRegion: "Upper Back", exerciseIndex: 0 },
+        { id: "slot_4", category: "Back", subRegion: "Lower Back", exerciseIndex: 0 },
+        { id: "slot_5", category: "Back", subRegion: "Shoulders", exerciseIndex: 0 },
+        { id: "slot_6", category: "Arms", subRegion: "Bicep", exerciseIndex: 0 },
+        { id: "slot_7", category: "Arms", subRegion: "Forearm", exerciseIndex: 0 },
+        { id: "slot_8", category: "Core", subRegion: "Front Core", exerciseIndex: 0 },
+        { id: "slot_9", category: "Core", subRegion: "Side Core", exerciseIndex: 0 },
+        { id: "slot_10", category: "Legs", subRegion: "Quads / Thighs", exerciseIndex: 0 },
+        { id: "slot_11", category: "Legs", subRegion: "Calves", exerciseIndex: 0 },
+        { id: "slot_12", category: "Legs", subRegion: "Glutes", exerciseIndex: 0 }
+      ]);
+
+      const [formData, setFormData] = React.useState({});
+
+      const handleCategoryChange = (cat) => {
+        setNewCategory(cat);
+        setNewSubRegion(SUB_REGIONS[cat][0]);
+      };
+
+      const handleClassifierPhoto = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => setNewPhoto(reader.result);
+          reader.readAsDataURL(file);
+        }
+      };
+
+      const handleAddExerciseToPool = () => {
+        if (!newName.trim()) {
+          alert("Please enter an exercise name.");
+          return;
+        }
+
+        const customEntry = {
+          name: newName,
+          hard: { target: "3–6", weight: 135, reps: 5 },
+          high: { target: "15–25", weight: 85, reps: 20 },
+          image: newPhoto
+        };
+
+        setExerciseDb(prev => {
+          const updatedRegion = [...(prev[newCategory][newSubRegion] || []), customEntry];
+          return {
+            ...prev,
+            [newCategory]: {
+              ...prev[newCategory],
+              [newSubRegion]: updatedRegion
+            }
+          };
+        });
+
+        alert(`Added "${newName}" to the ${newCategory} (${newSubRegion}) pool!`);
+        setNewName('');
+        setNewPhoto(null);
+      };
+
+      // Explicit Rotate Trigger
+      const handleRotateExercise = (slotId) => {
+        setActiveSlots(prev => prev.map(slot => {
+          if (slot.id === slotId) {
+            const pool = exerciseDb[slot.category][slot.subRegion] || [];
+            if (pool.length <= 1) return slot;
+            const nextIdx = (slot.exerciseIndex + 1) % pool.length;
+            return { ...slot, exerciseIndex: nextIdx };
+          }
+          return slot;
+        }));
+      };
+
+      const handleInputChange = (slotId, setIndex, field, value) => {
+        setFormData(prev => ({
+          ...prev,
+          [slotId]: {
+            ...prev[slotId],
+            [setIndex]: {
+              ...prev[slotId]?.[setIndex],
+              [field]: value
+            }
+          }
+        }));
+      };
+
+      const handleSaveSession = (slot, currentExercise) => {
+        const currentInputs = formData[slot.id] || {};
+        const setsArray = Object.values(currentInputs);
+
+        if (setsArray.length === 0) {
+          alert("Please enter set details before logging.");
+          return;
+        }
+
+        alert(`Logged ${sessionMode} data for ${currentExercise.name}!`);
+      };
+
+      return (
+        <div class="container">
+          <header class="header">
+            <h1 class="title">Full Body Workout Tracker</h1>
+            <div class="toggle-group">
+              <button
+                class={sessionMode === 'HARD' ? 'btn-hard' : 'btn-inactive'}
+                onClick={() => setSessionMode('HARD')}
+              >
+                HARD (Max Effort)
+              </button>
+              <button
+                class={sessionMode === 'HIGH' ? 'btn-high' : 'btn-inactive'}
+                onClick={() => setSessionMode('HIGH')}
+              >
+                HIGH (Exhaustion)
+              </button>
+            </div>
+          </header>
+
+          {/* Photo & Classifier Form */}
+          <section class="classifier-card">
+            <div class="classifier-title">📷 Add & Classify New Exercise Photo</div>
+            <div class="classifier-grid">
+              <label class="photo-upload-zone">
+                {newPhoto ? (
+                  <img src={newPhoto} class="photo-preview" alt="New Preview" />
+                ) : (
+                  <span class="upload-label">+ Select Photo</span>
+                )}
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleClassifierPhoto} />
+              </label>
+
+              <div class="form-inputs">
+                <input
+                  type="text"
+                  placeholder="Exercise Name (e.g., Cable Flye)"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e0' }}
+                />
+                <div class="form-row">
+                  <select value={newCategory} onChange={(e) => handleCategoryChange(e.target.value)}>
+                    {Object.keys(SUB_REGIONS).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <select value={newSubRegion} onChange={(e) => setNewSubRegion(e.target.value)}>
+                    {SUB_REGIONS[newCategory].map(sub => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+                <button class="add-btn" onClick={handleAddExerciseToPool}>Save & Add to Pool</button>
+              </div>
+            </div>
+          </section>
+
+          {/* Workout Cards */}
+          <main class="main">
+            {activeSlots.map((slot) => {
+              const exerciseOptions = exerciseDb[slot.category][slot.subRegion] || [];
+              const safeIndex = slot.exerciseIndex % exerciseOptions.length;
+              const currentExercise = exerciseOptions[safeIndex] || { name: "No Exercise Added", hard: { target: "0", weight: 0, reps: 0 }, high: { target: "0", weight: 0, reps: 0 }, image: null };
+              const config = sessionMode === 'HARD' ? currentExercise.hard : currentExercise.high;
+
+              return (
+                <div key={slot.id} class="card">
+                  <div class="card-top">
+                    {currentExercise.image && (
+                      <img src={currentExercise.image} class="img-display" alt={currentExercise.name} />
+                    )}
+
+                    <div class="card-header">
+                      <div class="exercise-title-row">
+                        <span class="exercise-name">{currentExercise.name}</span>
+                        {/* Always visible rotate button */}
+                        <button class="rotate-btn" onClick={() => handleRotateExercise(slot.id)}>
+                          ↻ Rotate ({safeIndex + 1}/{exerciseOptions.length})
+                        </button>
+                      </div>
+                      
+                      <div class="subtext-group">
+                        <span class="category-tag">{slot.category}</span>
+                        <span class="target-tag">{slot.subRegion}</span>
+                      </div>
+
+                      <div class="badge-group">
+                        <span class="badge">Target: {config.target} Reps</span>
+                        <span class="badge">Rest: {sessionMode === 'HARD' ? '180s' : '45s'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Set</th>
+                        <th class="td-center">Target Weight</th>
+                        <th>Weight (lbs)</th>
+                        <th>Reps</th>
+                        <th>{sessionMode === 'HARD' ? 'RPE / Effort' : 'Burnout (+Reps)'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[1, 2, 3].map((setNum) => (
+                        <tr key={setNum}>
+                          <td class="td-center">{setNum}</td>
+                          <td class="history-text">
+                            {config.weight} lbs × {config.reps}
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              placeholder={String(config.weight)}
+                              class="input"
+                              onChange={(e) => handleInputChange(slot.id, setNum, 'weight', e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              placeholder={config.target}
+                              class="input"
+                              onChange={(e) => handleInputChange(slot.id, setNum, 'reps', e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            {sessionMode === 'HARD' ? (
+                              <select
+                                class="select"
+                                onChange={(e) => handleInputChange(slot.id, setNum, 'rpe', e.target.value)}
+                              >
+                                <option value="7">RPE 7 (Moderate)</option>
+                                <option value="8">RPE 8 (Hard)</option>
+                                <option value="9">RPE 9 (Very Hard)</option>
+                                <option value="10">RPE 10 (Max Effort)</option>
+                              </select>
+                            ) : (
+                              <input
+                                type="number"
+                                placeholder="+ Failure Reps"
+                                class="input"
+                                onChange={(e) => handleInputChange(slot.id, setNum, 'burnout', e.target.value)}
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <button
+                    class={sessionMode === 'HARD' ? 'save-hard-btn' : 'save-high-btn'}
+                    onClick={() => handleSaveSession(slot, currentExercise)}
+                  >
+                    Log {sessionMode} {slot.subRegion} Data
+                  </button>
+                </div>
+              );
+            })}
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<WorkoutApp />);
+  </script>
+</body>
+</html>
