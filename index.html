@@ -66,12 +66,16 @@
     .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
     .modal-title { font-size: 20px; font-weight: 700; margin: 0; }
     .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #718096; }
-    .log-entry { border-bottom: 1px solid #edf2f7; padding: 12px 0; }
+    .log-entry { border-bottom: 1px solid #edf2f7; padding: 12px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
     .log-entry:last-child { border-bottom: none; }
+    .log-details { flex: 1; }
     .log-meta { display: flex; justify-content: space-between; font-size: 13px; color: #718096; margin-bottom: 6px; }
     .log-mode-hard { color: #e53e3e; font-weight: bold; }
     .log-mode-high { color: #319795; font-weight: bold; }
-    .clear-logs-btn { background-color: #feb2b2; color: #9b2c2c; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold; margin-top: 12px; }
+    .delete-single-btn { background: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer; flex-shrink: 0; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+    .share-logs-btn { background-color: #3182ce; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold; }
+    .clear-logs-btn { background-color: #fff5f5; color: #9b2c2c; border: 1px solid #feb2b2; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -143,19 +147,16 @@
       const [exerciseDb, setExerciseDb] = React.useState(INITIAL_DATABASE);
       const [showLogsModal, setShowLogsModal] = React.useState(false);
       
-      // Load stored logs or initialize empty array
       const [workoutLogs, setWorkoutLogs] = React.useState(() => {
         const saved = localStorage.getItem('workout_logs');
         return saved ? JSON.parse(saved) : [];
       });
 
-      // Classifier State
       const [newPhoto, setNewPhoto] = React.useState(null);
       const [newName, setNewName] = React.useState('');
       const [newCategory, setNewCategory] = React.useState('Chest');
       const [newSubRegion, setNewSubRegion] = React.useState('Upper Chest');
 
-      // Active Workout Slots
       const [activeSlots, setActiveSlots] = React.useState([
         { id: "slot_1", category: "Chest", subRegion: "Upper Chest", exerciseIndex: 0 },
         { id: "slot_2", category: "Chest", subRegion: "Lower Chest", exerciseIndex: 0 },
@@ -173,7 +174,6 @@
 
       const [formData, setFormData] = React.useState({});
 
-      // Sync logs to browser localStorage
       React.useEffect(() => {
         localStorage.setItem('workout_logs', JSON.stringify(workoutLogs));
       }, [workoutLogs]);
@@ -275,8 +275,40 @@
         alert(`Logged ${sessionMode} set for ${currentExercise.name}!`);
       };
 
+      // Delete a single log entry
+      const handleDeleteSingleLog = (logId) => {
+        setWorkoutLogs(prev => prev.filter(log => log.id !== logId));
+      };
+
+      // Native Phone Share API & Fallback
+      const handleShareLogs = async () => {
+        if (workoutLogs.length === 0) {
+          alert("No logs to share.");
+          return;
+        }
+
+        const textSummary = workoutLogs.map(log => {
+          const setStr = log.sets.map(s => `${s.weight}lbs x ${s.reps} reps`).join(', ');
+          return `• ${log.timestamp} [${log.mode}] ${log.exerciseName}: ${setStr}`;
+        }).join('\n\n');
+
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: 'My Workout Logs',
+              text: `Workout Logs Summary:\n\n${textSummary}`
+            });
+          } catch (err) {
+            console.log("Share dismissed");
+          }
+        } else {
+          navigator.clipboard.writeText(textSummary);
+          alert("Workout summary copied to clipboard!");
+        }
+      };
+
       const handleClearLogs = () => {
-        if (confirm("Are you sure you want to clear all workout history?")) {
+        if (confirm("Are you sure you want to clear ALL workout history?")) {
           setWorkoutLogs([]);
         }
       };
@@ -463,23 +495,36 @@
                   <div>
                     {workoutLogs.map((log) => (
                       <div key={log.id} class="log-entry">
-                        <div class="log-meta">
-                          <span><strong>{log.exerciseName}</strong> ({log.subRegion})</span>
-                          <span class={log.mode === 'HARD' ? 'log-mode-hard' : 'log-mode-high'}>
-                            {log.mode} • {log.timestamp}
-                          </span>
+                        <div class="log-details">
+                          <div class="log-meta">
+                            <span><strong>{log.exerciseName}</strong> ({log.subRegion})</span>
+                            <span class={log.mode === 'HARD' ? 'log-mode-hard' : 'log-mode-high'}>
+                              {log.mode} • {log.timestamp}
+                            </span>
+                          </div>
+                          <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px', fontSize: '13px' }}>
+                            {log.sets.map((s, i) => (
+                              <li key={i}>
+                                Set {s.setNum}: <strong>{s.weight} lbs</strong> × <strong>{s.reps} reps</strong> 
+                                {log.mode === 'HARD' ? ` (RPE ${s.rpe})` : ` (+${s.burnout} burnout reps)`}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                        <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px', fontSize: '13px' }}>
-                          {log.sets.map((s, i) => (
-                            <li key={i}>
-                              Set {s.setNum}: <strong>{s.weight} lbs</strong> × <strong>{s.reps} reps</strong> 
-                              {log.mode === 'HARD' ? ` (RPE ${s.rpe})` : ` (+${s.burnout} burnout reps)`}
-                            </li>
-                          ))}
-                        </ul>
+                        <button class="delete-single-btn" onClick={() => handleDeleteSingleLog(log.id)}>
+                          🗑️ Delete
+                        </button>
                       </div>
                     ))}
-                    <button class="clear-logs-btn" onClick={handleClearLogs}>Clear All Workout Logs</button>
+
+                    <div class="modal-actions">
+                      <button class="share-logs-btn" onClick={handleShareLogs}>
+                        📤 Export / Share Logs
+                      </button>
+                      <button class="clear-logs-btn" onClick={handleClearLogs}>
+                        Clear All Logs
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
